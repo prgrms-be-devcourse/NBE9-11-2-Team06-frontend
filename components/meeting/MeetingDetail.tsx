@@ -39,15 +39,15 @@ export function MeetingDetail({ meetingUrl }: MeetingDetailProps) {
     try {
       setIsLoading(true)
       setError(null)
-      
+
       const data = await getMeetingByUrl(meetingUrl)
       if (!data) {
         setError('모임을 찾을 수 없습니다.')
         return
       }
-      
+
       setMeeting(data)
-      
+
       const slots = await getRecommendedSlots(data.meeting_id)
       setRecommendedSlots(slots)
     } catch {
@@ -76,15 +76,19 @@ export function MeetingDetail({ meetingUrl }: MeetingDetailProps) {
   const handleSaveSchedule = async (name: string, password: string) => {
     if (!meeting) return
 
-    const availableTimes = Array.from(selectedTimes.entries()).map(([date, times]) => ({
-      date,
-      times,
-    }))
+    // 프론트 형식 → 백엔드 형식으로 변환
+    const availableDateTimes: string[] = []
+
+    selectedTimes.forEach((times, date) => {
+      times.forEach(time => {
+        availableDateTimes.push(`${date} ${time}`) // "2026-04-20 10:00" 형식
+      })
+    })
 
     await participateAsGuest(meeting.meeting_id, {
-      guest_name: name,
-      guest_password: password,
-      availableTimes,
+      guestName: name,
+      guestPassword: password,
+      availableDateTimes,
     })
 
     setIsInputMode(false)
@@ -94,7 +98,10 @@ export function MeetingDetail({ meetingUrl }: MeetingDetailProps) {
 
   const handleDeleteSchedule = async (name: string, password: string) => {
     if (!meeting) return
-    await deleteParticipantSchedule(meeting.meeting_id, name, password)
+    await deleteParticipantSchedule(meeting.meeting_id, {
+      guestName: name,
+      guestPassword: password,
+    })
     await fetchMeeting()
   }
 
@@ -204,9 +211,9 @@ export function MeetingDetail({ meetingUrl }: MeetingDetailProps) {
               {status.label}
             </Badge>
           </div>
-          
+
           <h1 className="text-2xl font-bold text-foreground mb-4">{meeting.title}</h1>
-          
+
           <div className="flex flex-wrap gap-4 text-sm text-muted-foreground">
             <div className="flex items-center gap-1">
               <Calendar className="w-4 h-4" />

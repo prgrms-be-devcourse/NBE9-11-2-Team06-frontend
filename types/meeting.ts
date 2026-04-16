@@ -138,13 +138,11 @@ export interface RecommendedTimeSlot {
 
 // 비회원 참여 요청
 export interface GuestParticipationRequest {
-  guest_name: string
-  guest_password: string
-  availableTimes: {
-    date: string
-    times: string[]
-  }[]
+  guestName: string
+  guestPassword: string
+  availableDateTimes: string[]
 }
+
 
 // 카테고리 옵션
 export const MEETING_CATEGORIES = [
@@ -167,3 +165,9 @@ export const DURATION_OPTIONS = [
   { value: 270, label: '4시간 30분' },
   { value: 300, label: '5시간' },
 ] as const
+
+export interface GuestDeleteRequest {
+  guestName: string
+  guestPassword: string
+}
+
