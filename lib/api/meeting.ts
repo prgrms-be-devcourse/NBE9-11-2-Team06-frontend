@@ -70,10 +70,14 @@ export async function participateAsGuest(
   meetingId: number,
   data: GuestParticipationRequest
 ): Promise<boolean> {
-  await delay(500)
+  const response = await fetch(`http://localhost:8080/api/meetings/${meetingId}/time-blocks`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    credentials: 'include',
+    body: JSON.stringify(data),
+  })
 
-  // Mock 처리 - 실제로는 DB에 저장
-  console.log('Guest participation:', meetingId, data)
+  if (!response.ok) throw new Error('시간표 등록에 실패했습니다.')
   return true
 }
 
@@ -123,24 +127,21 @@ export async function confirmMeeting(
 }
 
 // 비회원 일정 삭제
+// 비회원 일정 삭제
 export async function deleteParticipantSchedule(
   meetingId: number,
   data: GuestDeleteRequest
 ): Promise<boolean> {
-  await delay(500)
+  const response = await fetch(`http://localhost:8080/api/meetings/${meetingId}/time-blocks`, {
+    method: 'DELETE',
+    headers: { 'Content-Type': 'application/json' },
+    credentials: 'include',
+    body: JSON.stringify(data),
+  })
 
-  const detail = mockMeetingDetails.find(m => m.meeting_id === meetingId)
-  if (!detail) throw new Error('모임을 찾을 수 없습니다.')
-
-  const idx = detail.participants.findIndex(
-    p => p.guest_name === data.guestName && p.guest_password === data.guestPassword
-  )
-  if (idx === -1) throw new Error('이름 또는 비밀번호가 올바르지 않습니다.')
-
-  detail.participants.splice(idx, 1)
+  if (!response.ok) throw new Error('시간표 삭제에 실패했습니다.')
   return true
 }
-
 // 일정 확정 취소
 export async function cancelConfirmedMeeting(meetingId: number): Promise<boolean> {
   await delay(500)

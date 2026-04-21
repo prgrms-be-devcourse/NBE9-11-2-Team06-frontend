@@ -39,6 +39,18 @@ export const mockMeetings: Meeting[] = [
     random_url: 'def456uvw',
     duration: 180,
   },
+  {
+    meeting_id: 1,  // 백엔드 DB에 있는 meeting_id와 맞춰야 함!
+    member_id: 1,
+    title: 'TimeBlock 테스트',
+    category: 'meeting',
+    local_time: 'Asia/Seoul',
+    status: 'adjusting',
+    created_at: '2026-04-20T10:00:00Z',
+    modified_at: '2026-04-20T10:00:00Z',
+    random_url: 'test-url',
+    duration: 60,
+  },
 ]
 
 // Mock 참여자 데이터
@@ -88,6 +100,12 @@ export const mockMeetingDetails: MeetingDetail[] = [
       startTime: '14:00',
       endTime: '17:00',
     },
+
+  },
+  {
+    ...mockMeetings[2],  // 방금 추가한 모임
+    dates: ['2026-04-25', '2026-04-26', '2026-04-27'],
+    participants: [],
   },
 ]
 
