@@ -114,7 +114,7 @@ export function MeetingList() {
         </div>
       )}
       <Button
-        className="fixed bottom-6 right-6 bg-red-500 hover:bg-red-600"
+        className="fixed bottom-6 right-6 bg-gray-200 text-gray-600 hover:bg-gray-300 hover:text-gray-800"
         onClick={() => setShowDeleteConfirm(true)}
       >
         회원 탈퇴
