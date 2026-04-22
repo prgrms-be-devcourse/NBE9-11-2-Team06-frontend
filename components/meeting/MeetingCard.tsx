@@ -1,13 +1,13 @@
 'use client'
 
 import { useRouter } from 'next/navigation'
-import { Calendar, Clock, Copy, Eye, Trash2 } from 'lucide-react'
+import { Calendar, Clock, Copy, Eye, Trash2, CheckCircle } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
 import type { MeetingEntry } from '@/types/meeting'
 import { MEETING_CATEGORIES } from '@/types/meeting'
-import { formatDateKorean, formatDuration } from '@/lib/format'
+import { formatDateKorean, formatDuration, addMinutes } from '@/lib/format'
 
 interface MeetingCardProps {
   meeting: MeetingEntry
@@ -28,7 +28,7 @@ export function MeetingCard({ meeting, onDelete }: MeetingCardProps) {
   const handleCopyLink = () => {
     if (meeting.roomUrl) {
       const fullUrl = `${window.location.origin}/meetings/${meeting.roomUrl}`
-      const text = `"${meeting.title}" 일정 조율에 참여해 주세요.\n가능한 시간을 아래 링크에서 선택해 주세요:\n${fullUrl}`
+      const text = `"${meeting.title}" 일정 조율에 참여해 주세요:\n${fullUrl}`
       navigator.clipboard.writeText(text)
       alert('링크가 복사되었습니다!')
     }
@@ -44,13 +44,9 @@ export function MeetingCard({ meeting, onDelete }: MeetingCardProps) {
     }
   }
 
-  const firstDate = meeting.dates?.[0]
-  const lastDate = meeting.dates?.[meeting.dates.length - 1]
-  const dateRange = !firstDate
-    ? '-'
-    : firstDate === lastDate
-      ? formatDateKorean(firstDate)
-      : `${formatDateKorean(firstDate)} ~ ${formatDateKorean(lastDate)}`
+  const dateList = meeting.dates?.length
+    ? meeting.dates.map(d => formatDateKorean(d)).join(', ')
+    : '-'
 
   return (
     <Card className="relative">
@@ -82,14 +78,26 @@ export function MeetingCard({ meeting, onDelete }: MeetingCardProps) {
         </p>
 
         <div className="mb-4 space-y-2">
-          <div className="flex items-center gap-2 text-sm text-muted-foreground">
-            <Calendar className="w-4 h-4" />
-            <span>{dateRange}</span>
-          </div>
-          <div className="flex items-center gap-2 text-sm text-muted-foreground">
-            <Clock className="w-4 h-4" />
-            <span>진행 시간: {formatDuration(meeting.duration)}</span>
-          </div>
+          {meeting.status === 'CONFIRMED' && meeting.confirmedDate && meeting.confirmedTime ? (
+            <div className="flex items-center gap-2 text-sm font-medium text-primary">
+              <CheckCircle className="w-4 h-4" />
+              <span>
+                {formatDateKorean(meeting.confirmedDate)}{' '}
+                {meeting.confirmedTime.slice(0, 5)} ~ {addMinutes(meeting.confirmedTime, meeting.duration)}
+              </span>
+            </div>
+          ) : (
+            <>
+              <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                <Calendar className="w-4 h-4" />
+                <span>{dateList}</span>
+              </div>
+              <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                <Clock className="w-4 h-4" />
+                <span>진행 시간: {formatDuration(meeting.duration)}</span>
+              </div>
+            </>
+          )}
         </div>
 
         <div className="flex gap-2">

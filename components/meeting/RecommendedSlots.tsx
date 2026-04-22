@@ -22,7 +22,7 @@ export function RecommendedSlots({ slots, isOwner, onConfirm, onCancelConfirm, o
         <CardHeader>
           <CardTitle className="flex items-center gap-2 text-base">
             <Sparkles className="w-4 h-4" />
-            추천 시간대
+            추천 일정
           </CardTitle>
         </CardHeader>
         <CardContent className="space-y-3">
@@ -44,7 +44,7 @@ export function RecommendedSlots({ slots, isOwner, onConfirm, onCancelConfirm, o
       <CardHeader>
         <CardTitle className="flex items-center gap-2 text-base">
           <Sparkles className="w-4 h-4" />
-          추천 시간대
+          추천 일정
         </CardTitle>
       </CardHeader>
       <CardContent className="space-y-3">
@@ -85,7 +85,7 @@ export function RecommendedSlots({ slots, isOwner, onConfirm, onCancelConfirm, o
                 {formatDateKorean(slot.date)}
               </span>
               <span className="text-xs text-primary font-medium">
-                {slot.availableCount}명 가능
+                {slot.availableCount}명 참여 가능
               </span>
             </div>
             <p className="text-sm text-muted-foreground mb-2">
@@ -97,7 +97,7 @@ export function RecommendedSlots({ slots, isOwner, onConfirm, onCancelConfirm, o
                 className="w-full"
                 onClick={() => onConfirm(slot)}
               >
-                이 시간으로 확정
+                일정 확정
               </Button>
             )}
           </div>

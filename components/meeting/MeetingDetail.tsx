@@ -205,18 +205,15 @@ export function MeetingDetail({ meetingUrl }: MeetingDetailProps) {
   const handleCopyMeetingLink = () => {
     if (!meeting?.roomUrl) return
     const fullUrl = `${window.location.origin}/meetings/${meeting.roomUrl}`
-    const text = `"${meeting.title}" 일정 조율에 참여해 주세요.\n가능한 시간을 아래 링크에서 선택해 주세요:\n${fullUrl}`
+    const text = `"${meeting.title}" 일정 조율에 참여해 주세요:\n${fullUrl}`
     navigator.clipboard.writeText(text)
     alert('링크가 복사되었습니다!')
   }
 
   const handleCopyConfirmedText = () => {
     if (!confirmedSchedule || !meeting) return
-    const startTime = confirmedSchedule.time.slice(0, 5)
-    const endTime = addMinutes(confirmedSchedule.time, meeting.duration)
-    const text = `${formatDateKorean(confirmedSchedule.date)} ${startTime} - ${endTime} "${meeting.title}" 모일 예정입니다`
-    navigator.clipboard.writeText(text)
-    alert('텍스트가 복사되었습니다!')
+    navigator.clipboard.writeText(confirmedSchedule.message)
+    alert('텍스트가 복사되었습니다!\n일정 확정 메세지를 참여자에게 전달해주세요.')
   }
 
   if (isLoading) {
@@ -283,7 +280,7 @@ export function MeetingDetail({ meetingUrl }: MeetingDetailProps) {
                 </span>
                 <Button variant="ghost" size="sm" onClick={handleCopyConfirmedText}>
                   <Copy className="w-4 h-4 mr-1" />
-                  복사
+                  일정 확정 메세지
                 </Button>
               </div>
             </div>
@@ -342,7 +339,7 @@ export function MeetingDetail({ meetingUrl }: MeetingDetailProps) {
               <p className="text-sm text-muted-foreground mb-4">
                 {isInputMode
                   ? '가능한 시간을 드래그하여 선택하세요'
-                  : 'hover시 참여자 이름을 확인할 수 있습니다'
+                  : '시간표에 마우스를 올리면 해당 시간에 참여 가능 사람을 확인할 수 있습니다'
                 }
               </p>
 
@@ -374,7 +371,7 @@ export function MeetingDetail({ meetingUrl }: MeetingDetailProps) {
                     취소
                   </Button>
                   <Button onClick={handleOrganizerConfirm} disabled={selectedTimes.size === 0}>
-                    이 시간으로 확정
+                    일정 확정
                   </Button>
                 </div>
               )}

@@ -17,7 +17,7 @@ export function MeetingCreateForm() {
   const [title, setTitle] = useState('')
   const [category, setCategory] = useState('')
   const [selectedDates, setSelectedDates] = useState<string[]>([])
-  const [duration, setDuration] = useState<number>(60)
+  const [duration, setDuration] = useState<number | null>(null)
   const [error, setError] = useState('')
   const [isLoading, setIsLoading] = useState(false)
 
@@ -37,6 +37,11 @@ export function MeetingCreateForm() {
 
     if (selectedDates.length === 0) {
       setError('최소 1개 이상의 날짜를 선택해주세요.')
+      return
+    }
+
+    if (!duration) {
+      setError('진행 시간을 선택해주세요.')
       return
     }
 
@@ -81,7 +86,7 @@ export function MeetingCreateForm() {
             <Label>카테고리</Label>
             <Select value={category} onValueChange={setCategory} disabled={isLoading}>
               <SelectTrigger>
-                <SelectValue placeholder="카테고리 선택" />
+                <SelectValue placeholder="선택" />
               </SelectTrigger>
               <SelectContent>
                 {MEETING_CATEGORIES.map(cat => (
@@ -95,9 +100,9 @@ export function MeetingCreateForm() {
 
           <div className="space-y-2">
             <Label>진행 시간</Label>
-            <Select value={duration.toString()} onValueChange={(v) => setDuration(Number(v))} disabled={isLoading}>
+            <Select value={duration?.toString() ?? ''} onValueChange={(v) => setDuration(Number(v))} disabled={isLoading}>
               <SelectTrigger>
-                <SelectValue />
+                <SelectValue placeholder="선택" />
               </SelectTrigger>
               <SelectContent>
                 {DURATION_OPTIONS.map(opt => (
@@ -115,7 +120,7 @@ export function MeetingCreateForm() {
         <CardHeader>
           <CardTitle>날짜 선택</CardTitle>
           <p className="text-sm text-muted-foreground">
-            가능한 날짜들을 클릭하거나 드래그해서 선택하세요 (최대 31일)
+            일정 조율을 위한 날짜 후보를 선택해주세요 (최대 31일)
           </p>
         </CardHeader>
         <CardContent>

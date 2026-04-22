@@ -10,7 +10,7 @@ export default async function MeetingDetailPage({ params }: MeetingDetailPagePro
   
   return (
     <div className="min-h-screen">
-      <Header showCopyLink copyLinkUrl={id} />
+      <Header />
       <main className="container mx-auto px-4 py-8 max-w-6xl">
         <MeetingDetail meetingUrl={id} />
       </main>

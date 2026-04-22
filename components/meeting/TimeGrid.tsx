@@ -53,6 +53,7 @@ export function TimeGrid({
   const [isDragging, setIsDragging] = useState(false)
   const [dragStart, setDragStart] = useState<{ date: string; timeIdx: number } | null>(null)
   const [hoveredCell, setHoveredCell] = useState<{ date: string; time: string } | null>(null)
+  const [tooltipPos, setTooltipPos] = useState<{ x: number; y: number } | null>(null)
   const [baseTimesForDate, setBaseTimesForDate] = useState<string[]>([])
 
   const availabilityMap = useMemo(() => {
@@ -157,6 +158,7 @@ export function TimeGrid({
   const cols = `60px repeat(${dates.length}, minmax(80px, 1fr))`
 
   return (
+  <>
     <div
       className="overflow-x-auto"
       onMouseUp={handleDragEnd}
@@ -191,7 +193,6 @@ export function TimeGrid({
                   const key = `${date}-${time}`
                   const availability = availabilityMap.get(key)
                   const isSelected = isTimeSelected(date, time)
-                  const isHovered = hoveredCell?.date === date && hoveredCell?.time === time
                   const confirmedPos = getConfirmedPos(date, time)
 
                   return (
@@ -203,24 +204,21 @@ export function TimeGrid({
                         (isInputMode || isOrganizerPickMode) && 'hover:bg-muted',
                         isInputMode && isSelected && 'bg-primary/70',
                         !isInputMode && availability && getIntensityClass(availability.count),
-                        isOrganizerPickMode && isSelected && 'ring-2 ring-inset ring-primary z-10',
+                        isOrganizerPickMode && isSelected && 'ring-2 ring-inset ring-yellow-400 bg-yellow-200 z-10',
                       )}
                       style={getConfirmedStyle(confirmedPos)}
                       onClick={() => handleCellClick(date, timeIdx)}
                       onMouseDown={() => handleDragStart(date, timeIdx)}
-                      onMouseEnter={() => {
+                      onMouseEnter={(e) => {
                         handleDragEnter(date, timeIdx)
                         if (availability && !isInputMode) {
+                          const rect = e.currentTarget.getBoundingClientRect()
                           setHoveredCell({ date, time })
+                          setTooltipPos({ x: rect.left + rect.width / 2, y: rect.top })
                         }
                       }}
-                      onMouseLeave={() => setHoveredCell(null)}
+                      onMouseLeave={() => { setHoveredCell(null); setTooltipPos(null) }}
                     >
-                      {isHovered && availability && !isInputMode && (
-                        <div className="absolute z-50 left-1/2 -translate-x-1/2 bottom-full mb-1 px-2 py-1 bg-foreground text-background text-xs rounded whitespace-nowrap">
-                          {availability.names.join(', ')}
-                        </div>
-                      )}
                     </div>
                   )
                 })}
@@ -230,5 +228,21 @@ export function TimeGrid({
         </div>
       </div>
     </div>
+
+    {hoveredCell && tooltipPos && (() => {
+      const availability = availabilityMap.get(`${hoveredCell.date}-${hoveredCell.time}`)
+      if (!availability) return null
+      return (
+        <div
+          className="fixed z-50 px-2 py-1 bg-foreground text-background text-xs rounded pointer-events-none"
+          style={{ left: tooltipPos.x, top: tooltipPos.y - 8, transform: 'translate(-50%, -100%)' }}
+        >
+          {availability.names.map(name => (
+            <div key={name}>{name}</div>
+          ))}
+        </div>
+      )
+    })()}
+  </>
   )
 }
