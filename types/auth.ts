@@ -1,40 +1,28 @@
-// ERD MEMBER 테이블 기반 타입 정의
-export interface Member {
-  member_id: number
-  email: string
-  password_hash: string
-  nickname: string | null
-  timezone: string | null
-  created_at: string | null
-  modified_at: string | null
+export interface AuthUser {
+  memberId: number
+  nickname: string
 }
 
-// 로그인 요청/응답
 export interface LoginRequest {
   email: string
   password: string
 }
 
-export interface LoginResponse {
-  success: boolean
-  member: Omit<Member, 'password_hash'> | null
-  message?: string
-}
-
-// 회원가입 요청/응답
 export interface RegisterRequest {
   email: string
   password: string
-  nickname?: string
+  nickname: string
+  timezone: 'ASIA_SEOUL' | 'UTC' | 'AMERICA_NEW_YORK' | 'AMERICA_LOS_ANGELES'
 }
 
-export interface RegisterResponse {
-  success: boolean
-  message?: string
-}
-
-// 세션 정보
 export interface AuthSession {
   isAuthenticated: boolean
-  member: Omit<Member, 'password_hash'> | null
+  user: AuthUser | null
 }
+
+export const TIMEZONE_OPTIONS = [
+  { value: 'ASIA_SEOUL', label: '아시아/서울 (KST)' },
+  { value: 'UTC', label: 'UTC' },
+  { value: 'AMERICA_NEW_YORK', label: '미국/뉴욕 (EST)' },
+  { value: 'AMERICA_LOS_ANGELES', label: '미국/로스앤젤레스 (PST)' },
+] as const

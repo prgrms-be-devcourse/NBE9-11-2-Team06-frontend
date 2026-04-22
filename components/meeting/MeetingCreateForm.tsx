@@ -10,7 +10,6 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Spinner } from '@/components/ui/spinner'
 import { DateRangePicker } from './DateRangePicker'
 import { createMeeting } from '@/lib/api/meeting'
-import { getSession } from '@/lib/api/auth'
 import { MEETING_CATEGORIES, DURATION_OPTIONS } from '@/types/meeting'
 
 export function MeetingCreateForm() {
@@ -41,21 +40,15 @@ export function MeetingCreateForm() {
       return
     }
 
-    const session = getSession()
-    if (!session.isAuthenticated || !session.member) {
-      router.push('/login')
-      return
-    }
-
     setIsLoading(true)
 
     try {
       await createMeeting({
         title: title.trim(),
         category,
-        dates: selectedDates,
+        dates: [...selectedDates].sort(),
         duration,
-      }, session.member.member_id)
+      })
 
       router.push('/meetings')
     } catch {

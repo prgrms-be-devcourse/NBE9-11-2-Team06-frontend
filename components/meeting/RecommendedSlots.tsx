@@ -4,7 +4,7 @@ import { Sparkles, Check } from 'lucide-react'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import type { RecommendedTimeSlot } from '@/types/meeting'
-import { formatDateKorean } from '@/mock/meeting'
+import { formatDateKorean } from '@/lib/format'
 
 interface RecommendedSlotsProps {
   slots: RecommendedTimeSlot[]
@@ -89,11 +89,11 @@ export function RecommendedSlots({ slots, isOwner, onConfirm, onCancelConfirm, o
               </span>
             </div>
             <p className="text-sm text-muted-foreground mb-2">
-              {slot.startTime} - {slot.endTime}
+              {slot.startTime.slice(0, 5)} - {slot.endTime.slice(0, 5)}
             </p>
             {isOwner && onConfirm && (
-              <Button 
-                size="sm" 
+              <Button
+                size="sm"
                 className="w-full"
                 onClick={() => onConfirm(slot)}
               >

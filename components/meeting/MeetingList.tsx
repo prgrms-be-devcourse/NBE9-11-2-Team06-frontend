@@ -7,21 +7,20 @@ import { Button } from '@/components/ui/button'
 import { MeetingCard } from './MeetingCard'
 import { LoadingState } from '@/components/common/LoadingState'
 import { ErrorState } from '@/components/common/ErrorState'
-import { getMyMeetings, deleteMeeting, getMeetingDetail } from '@/lib/api/meeting'
+import { getMyMeetings, deleteMeeting } from '@/lib/api/meeting'
 import { getSession } from '@/lib/api/auth'
-import type { Meeting, MeetingDetail } from '@/types/meeting'
+import type { MeetingEntry } from '@/types/meeting'
 
 export function MeetingList() {
   const router = useRouter()
-  const [meetings, setMeetings] = useState<Meeting[]>([])
-  const [meetingDetails, setMeetingDetails] = useState<Map<number, MeetingDetail>>(new Map())
+  const [meetings, setMeetings] = useState<MeetingEntry[]>([])
   const [isLoading, setIsLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
 
   const fetchMeetings = async () => {
     const session = getSession()
-    
-    if (!session.isAuthenticated || !session.member) {
+
+    if (!session.isAuthenticated || !session.user) {
       router.push('/login')
       return
     }
@@ -29,18 +28,8 @@ export function MeetingList() {
     try {
       setIsLoading(true)
       setError(null)
-      const data = await getMyMeetings(session.member.member_id)
+      const data = await getMyMeetings()
       setMeetings(data)
-      
-      // 각 모임의 상세 정보도 가져옴
-      const detailsMap = new Map<number, MeetingDetail>()
-      for (const meeting of data) {
-        const detail = await getMeetingDetail(meeting.meeting_id)
-        if (detail) {
-          detailsMap.set(meeting.meeting_id, detail)
-        }
-      }
-      setMeetingDetails(detailsMap)
     } catch {
       setError('모임 목록을 불러오는데 실패했습니다.')
     } finally {
@@ -55,7 +44,7 @@ export function MeetingList() {
   const handleDelete = async (meetingId: number) => {
     try {
       await deleteMeeting(meetingId)
-      setMeetings(prev => prev.filter(m => m.meeting_id !== meetingId))
+      setMeetings(prev => prev.filter(m => m.meetingId !== meetingId))
     } catch {
       alert('삭제에 실패했습니다.')
     }
@@ -88,19 +77,13 @@ export function MeetingList() {
         </div>
       ) : (
         <div className="space-y-4">
-          {meetings.map(meeting => {
-            const detail = meetingDetails.get(meeting.meeting_id)
-            return (
-              <MeetingCard
-                key={meeting.meeting_id}
-                meeting={meeting}
-                dates={detail?.dates || []}
-                participantCount={detail?.participants.length}
-                confirmedDateTime={detail?.confirmedDateTime}
-                onDelete={handleDelete}
-              />
-            )
-          })}
+          {meetings.map(meeting => (
+            <MeetingCard
+              key={meeting.meetingId}
+              meeting={meeting}
+              onDelete={handleDelete}
+            />
+          ))}
         </div>
       )}
     </div>

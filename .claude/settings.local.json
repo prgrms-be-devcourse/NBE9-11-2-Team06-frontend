@@ -1,0 +1,8 @@
+{
+  "permissions": {
+    "allow": [
+      "Read(//c/sw/NBE9-11-2-Team06/src/main/java//**)",
+      "Read(//c/sw//**)"
+    ]
+  }
+}

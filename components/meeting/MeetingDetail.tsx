@@ -11,19 +11,43 @@ import { RecommendedSlots } from './RecommendedSlots'
 import { GuestInputModal } from './GuestInputModal'
 import { LoadingState } from '@/components/common/LoadingState'
 import { ErrorState } from '@/components/common/ErrorState'
-import { getMeetingByUrl, getRecommendedSlots, participateAsGuest, confirmMeeting, cancelConfirmedMeeting, deleteParticipantSchedule } from '@/lib/api/meeting'
+import {
+  getMeetingByUrl,
+  getParticipantSchedules,
+  getRecommendedSlots,
+  getConfirmedSchedule,
+  participateAsGuest,
+  joinMeeting,
+  confirmMeeting,
+  cancelConfirmedMeeting,
+  deleteParticipantSchedule,
+  getTimeTable,
+} from '@/lib/api/meeting'
 import { getSession } from '@/lib/api/auth'
 import { MEETING_CATEGORIES } from '@/types/meeting'
-import { formatDuration, formatDateKorean } from '@/mock/meeting'
-import type { MeetingDetail as MeetingDetailType, RecommendedTimeSlot } from '@/types/meeting'
+import { formatDuration, formatDateKorean, addMinutes } from '@/lib/format'
+import type {
+  MeetingEntry,
+  ParticipantSchedule,
+  RecommendedTimeSlot,
+  ConfirmedSchedule,
+} from '@/types/meeting'
 
 interface MeetingDetailProps {
   meetingUrl: string
 }
 
+const STATUS_CONFIG = {
+  PENDING: { label: '조율 중', variant: 'secondary' as const },
+  CONFIRMED: { label: '확정됨', variant: 'default' as const },
+}
+
 export function MeetingDetail({ meetingUrl }: MeetingDetailProps) {
-  const [meeting, setMeeting] = useState<MeetingDetailType | null>(null)
+  const [meeting, setMeeting] = useState<MeetingEntry | null>(null)
+  const [participants, setParticipants] = useState<ParticipantSchedule[]>([])
+  const [dates, setDates] = useState<string[]>([])
   const [recommendedSlots, setRecommendedSlots] = useState<RecommendedTimeSlot[]>([])
+  const [confirmedSchedule, setConfirmedSchedule] = useState<ConfirmedSchedule | null>(null)
   const [isLoading, setIsLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
   const [isInputMode, setIsInputMode] = useState(false)
@@ -33,23 +57,31 @@ export function MeetingDetail({ meetingUrl }: MeetingDetailProps) {
   const [showDeleteModal, setShowDeleteModal] = useState(false)
 
   const session = getSession()
-  const isOwner = meeting && session.member && meeting.member_id === session.member.member_id
+  const isOwner = session.isAuthenticated
 
   const fetchMeeting = async () => {
     try {
       setIsLoading(true)
       setError(null)
 
-      const data = await getMeetingByUrl(meetingUrl)
-      if (!data) {
-        setError('모임을 찾을 수 없습니다.')
-        return
-      }
+      const meetingData = await getMeetingByUrl(meetingUrl)
+      setMeeting(meetingData)
+      setDates([...meetingData.dates].sort())
 
-      setMeeting(data)
+      // recommend()가 aggregate된 TimeTable을 읽으므로 /timetable 먼저 호출
+      await getTimeTable(meetingData.meetingId).catch(() => {})
 
-      const slots = await getRecommendedSlots(data.meeting_id)
+      const [participantData, slots, confirmed] = await Promise.all([
+        getParticipantSchedules(meetingData.meetingId),
+        getRecommendedSlots(meetingData.meetingId),
+        meetingData.status === 'CONFIRMED'
+          ? getConfirmedSchedule(meetingData.meetingId)
+          : Promise.resolve(null),
+      ])
+
+      setParticipants(participantData)
       setRecommendedSlots(slots)
+      setConfirmedSchedule(confirmed)
     } catch {
       setError('모임 정보를 불러오는데 실패했습니다.')
     } finally {
@@ -76,19 +108,29 @@ export function MeetingDetail({ meetingUrl }: MeetingDetailProps) {
   const handleSaveSchedule = async (name: string, password: string) => {
     if (!meeting) return
 
-    // 프론트 형식 → 백엔드 형식으로 변환
-    const availableDateTimes: string[] = []
-
+    const now = new Date()
+    const allDateTimes: string[] = []
     selectedTimes.forEach((times, date) => {
       times.forEach(time => {
-        availableDateTimes.push(`${date} ${time}`) // "2026-04-20 10:00" 형식
+        allDateTimes.push(`${date} ${time}`)
       })
     })
 
-    await participateAsGuest(meeting.meeting_id, {
+    const futureDateTimes = allDateTimes.filter(dt => {
+      const [d, t] = dt.split(' ')
+      return new Date(`${d}T${t}:00`) > now
+    })
+
+    if (futureDateTimes.length === 0) {
+      throw new Error('선택한 시간이 모두 현재 이전입니다. 미래 시간을 선택해주세요.')
+    }
+
+    await joinMeeting(meeting.roomUrl, { guestName: name, guestPassword: password })
+
+    await participateAsGuest(meeting.meetingId, {
       guestName: name,
       guestPassword: password,
-      availableDateTimes,
+      availableDateTimes: futureDateTimes,
     })
 
     setIsInputMode(false)
@@ -98,7 +140,7 @@ export function MeetingDetail({ meetingUrl }: MeetingDetailProps) {
 
   const handleDeleteSchedule = async (name: string, password: string) => {
     if (!meeting) return
-    await deleteParticipantSchedule(meeting.meeting_id, {
+    await deleteParticipantSchedule(meeting.meetingId, {
       guestName: name,
       guestPassword: password,
     })
@@ -109,7 +151,8 @@ export function MeetingDetail({ meetingUrl }: MeetingDetailProps) {
     if (!meeting || !isOwner) return
     const confirmed = confirm('확정된 일정을 취소하시겠습니까?')
     if (!confirmed) return
-    await cancelConfirmedMeeting(meeting.meeting_id)
+    await cancelConfirmedMeeting(meeting.meetingId)
+    setConfirmedSchedule(null)
     await fetchMeeting()
   }
 
@@ -128,58 +171,50 @@ export function MeetingDetail({ meetingUrl }: MeetingDetailProps) {
     }
     const [date, times] = entries[0]
     const sortedTimes = [...times].sort()
-    // 첫 번째 연속 블록만 사용
-    let endIdx = 0
-    for (let i = 1; i < sortedTimes.length; i++) {
-      const [ph, pm] = sortedTimes[i - 1].split(':').map(Number)
-      const [ch, cm] = sortedTimes[i].split(':').map(Number)
-      if (ch * 60 + cm - (ph * 60 + pm) === 30) {
-        endIdx = i
-      } else {
-        break
-      }
-    }
     const startTime = sortedTimes[0]
-    const lastTime = sortedTimes[endIdx]
-    const [h, m] = lastTime.split(':').map(Number)
-    const endMinutes = h * 60 + m + 30
-    const endTime = `${Math.floor(endMinutes / 60).toString().padStart(2, '0')}:${(endMinutes % 60).toString().padStart(2, '0')}`
+    const endTime = addMinutes(startTime, meeting.duration)
 
     const confirmed = confirm(`${formatDateKorean(date)} ${startTime} - ${endTime}로 일정을 확정하시겠습니까?`)
     if (!confirmed) return
 
-    await confirmMeeting(meeting.meeting_id, { date, startTime, endTime })
-    setIsOrganizerPickMode(false)
-    setSelectedTimes(new Map())
-    await fetchMeeting()
+    try {
+      await confirmMeeting(meeting.meetingId, { date, time: startTime })
+      setIsOrganizerPickMode(false)
+      setSelectedTimes(new Map())
+      await fetchMeeting()
+    } catch (err) {
+      alert(err instanceof Error ? err.message : '일정 확정에 실패했습니다.')
+    }
   }
 
   const handleConfirmSlot = async (slot: RecommendedTimeSlot) => {
     if (!meeting || !isOwner) return
-
-    const confirmed = confirm(`${formatDateKorean(slot.date)} ${slot.startTime} - ${slot.endTime}로 일정을 확정하시겠습니까?`)
+    const startTime = slot.startTime.slice(0, 5)
+    const endTime = addMinutes(startTime, meeting.duration)
+    const confirmed = confirm(`${formatDateKorean(slot.date)} ${startTime} - ${endTime}로 일정을 확정하시겠습니까?`)
     if (!confirmed) return
 
-    await confirmMeeting(meeting.meeting_id, {
-      date: slot.date,
-      startTime: slot.startTime,
-      endTime: slot.endTime,
-    })
-
-    await fetchMeeting()
+    try {
+      await confirmMeeting(meeting.meetingId, { date: slot.date, time: startTime })
+      await fetchMeeting()
+    } catch (err) {
+      alert(err instanceof Error ? err.message : '일정 확정에 실패했습니다.')
+    }
   }
 
   const handleCopyMeetingLink = () => {
-    if (!meeting?.random_url) return
-    const fullUrl = `${window.location.origin}/meetings/${meeting.random_url}`
+    if (!meeting?.roomUrl) return
+    const fullUrl = `${window.location.origin}/meetings/${meeting.roomUrl}`
     const text = `"${meeting.title}" 일정 조율에 참여해 주세요.\n가능한 시간을 아래 링크에서 선택해 주세요:\n${fullUrl}`
     navigator.clipboard.writeText(text)
     alert('링크가 복사되었습니다!')
   }
 
   const handleCopyConfirmedText = () => {
-    if (!meeting?.confirmedDateTime) return
-    const text = `${formatDateKorean(meeting.confirmedDateTime.date)} ${meeting.confirmedDateTime.startTime} "${meeting.title}" 모일 예정입니다`
+    if (!confirmedSchedule || !meeting) return
+    const startTime = confirmedSchedule.time.slice(0, 5)
+    const endTime = addMinutes(confirmedSchedule.time, meeting.duration)
+    const text = `${formatDateKorean(confirmedSchedule.date)} ${startTime} - ${endTime} "${meeting.title}" 모일 예정입니다`
     navigator.clipboard.writeText(text)
     alert('텍스트가 복사되었습니다!')
   }
@@ -193,21 +228,26 @@ export function MeetingDetail({ meetingUrl }: MeetingDetailProps) {
   }
 
   const categoryLabel = MEETING_CATEGORIES.find(c => c.value === meeting.category)?.label || meeting.category
-  const statusConfig = {
-    adjusting: { label: '조율 중', variant: 'secondary' as const },
-    confirmed: { label: '확정됨', variant: 'default' as const },
-    ended: { label: '종료', variant: 'outline' as const },
-  }
-  const status = meeting.status ? statusConfig[meeting.status] : statusConfig.adjusting
+  const status = STATUS_CONFIG[meeting.status] ?? STATUS_CONFIG.PENDING
+
+  const confirmedSlotForDisplay = confirmedSchedule
+    ? {
+        date: confirmedSchedule.date,
+        startTime: confirmedSchedule.time.slice(0, 5),
+        endTime: addMinutes(confirmedSchedule.time, meeting.duration),
+      }
+    : undefined
 
   return (
     <div className="space-y-6">
-      {/* 모임 정보 헤더 */}
       <Card>
         <CardContent className="p-6">
           <div className="flex items-center gap-2 mb-3">
             <Badge variant="outline">{categoryLabel}</Badge>
-            <Badge variant={status.variant} className={meeting.status === 'confirmed' ? 'bg-primary text-primary-foreground' : ''}>
+            <Badge
+              variant={status.variant}
+              className={meeting.status === 'CONFIRMED' ? 'bg-primary text-primary-foreground' : ''}
+            >
               {status.label}
             </Badge>
           </div>
@@ -217,16 +257,16 @@ export function MeetingDetail({ meetingUrl }: MeetingDetailProps) {
           <div className="flex flex-wrap gap-4 text-sm text-muted-foreground">
             <div className="flex items-center gap-1">
               <Calendar className="w-4 h-4" />
-              <span>{meeting.dates.length}개 날짜</span>
+              <span>{dates.length}개 날짜</span>
             </div>
             <div className="flex items-center gap-1">
               <Clock className="w-4 h-4" />
-              <span>최소 {meeting.duration ? formatDuration(meeting.duration) : '-'}</span>
+              <span>최소 {formatDuration(meeting.duration)}</span>
             </div>
             <div className="flex items-center gap-2">
               <div className="flex items-center gap-1">
                 <Users className="w-4 h-4" />
-                <span>{meeting.participants.length}명 참여</span>
+                <span>{participants.length}명 참여</span>
               </div>
               <Button variant="ghost" size="sm" className="h-6 px-2 text-xs" onClick={handleCopyMeetingLink}>
                 <Link className="w-3 h-3 mr-1" />
@@ -235,11 +275,11 @@ export function MeetingDetail({ meetingUrl }: MeetingDetailProps) {
             </div>
           </div>
 
-          {meeting.confirmedDateTime && (
+          {confirmedSchedule && confirmedSlotForDisplay && (
             <div className="mt-4 p-3 bg-accent rounded-lg">
               <div className="flex items-center justify-between">
                 <span className="font-medium text-accent-foreground">
-                  {formatDateKorean(meeting.confirmedDateTime.date)} {meeting.confirmedDateTime.startTime} - {meeting.confirmedDateTime.endTime}
+                  {formatDateKorean(confirmedSlotForDisplay.date)} {confirmedSlotForDisplay.startTime} - {confirmedSlotForDisplay.endTime}
                 </span>
                 <Button variant="ghost" size="sm" onClick={handleCopyConfirmedText}>
                   <Copy className="w-4 h-4 mr-1" />
@@ -251,9 +291,7 @@ export function MeetingDetail({ meetingUrl }: MeetingDetailProps) {
         </CardContent>
       </Card>
 
-      {/* 메인 콘텐츠 */}
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-        {/* 시간표 */}
         <div className="lg:col-span-2">
           <Card>
             <CardContent className="p-6">
@@ -309,14 +347,14 @@ export function MeetingDetail({ meetingUrl }: MeetingDetailProps) {
               </p>
 
               <TimeGrid
-                dates={meeting.dates}
-                participants={meeting.participants}
+                dates={dates}
+                participants={participants}
                 isInputMode={isInputMode}
                 isOrganizerPickMode={isOrganizerPickMode}
                 selectedTimes={selectedTimes}
                 onTimeSelect={handleTimeSelect}
-                maxParticipants={meeting.participants.length || 1}
-                confirmedSlot={meeting.confirmedDateTime}
+                maxParticipants={participants.length || 1}
+                confirmedSlot={confirmedSlotForDisplay}
               />
 
               {isInputMode && selectedTimes.size > 0 && (
@@ -344,17 +382,16 @@ export function MeetingDetail({ meetingUrl }: MeetingDetailProps) {
           </Card>
         </div>
 
-        {/* 사이드바 */}
         <div className="space-y-6">
           <RecommendedSlots
             slots={recommendedSlots}
-            isOwner={!!isOwner}
+            isOwner={isOwner}
             onConfirm={handleConfirmSlot}
             onCancelConfirm={handleCancelConfirm}
             onManualSelect={handleManualSelect}
-            confirmedSlot={meeting.confirmedDateTime}
+            confirmedSlot={confirmedSlotForDisplay}
           />
-          <ParticipantList participants={meeting.participants} />
+          <ParticipantList participants={participants} />
         </div>
       </div>
 

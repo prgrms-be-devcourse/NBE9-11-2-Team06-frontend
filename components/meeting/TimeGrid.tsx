@@ -2,11 +2,11 @@
 
 import { Fragment, useState, useCallback, useMemo } from 'react'
 import { cn } from '@/lib/utils'
-import type { ParticipantWithAvailability } from '@/types/meeting'
+import type { ParticipantSchedule } from '@/types/meeting'
 
 interface TimeGridProps {
   dates: string[]
-  participants: ParticipantWithAvailability[]
+  participants: ParticipantSchedule[]
   isInputMode: boolean
   isOrganizerPickMode?: boolean
   selectedTimes: Map<string, string[]>
@@ -20,6 +20,23 @@ const TIME_SLOTS = Array.from({ length: 48 }, (_, i) => {
   const minutes = i % 2 === 0 ? '00' : '30'
   return `${hours}:${minutes}`
 })
+
+function expandTimeRange(startTime: string, endTime: string): string[] {
+  const [sh, sm] = startTime.split(':').map(Number)
+  const [eh, em] = endTime.split(':').map(Number)
+  const slots: string[] = []
+  let current = sh * 60 + sm
+  // 백엔드 toRanges는 마지막 슬롯(23:30)에 +30분 = 00:00(자정)으로 endTime을 계산.
+  // 00:00을 0분으로 해석하면 루프가 동작하지 않으므로 1440분(24시간)으로 처리.
+  const end = (eh === 0 && em === 0) ? 24 * 60 : eh * 60 + em
+  while (current < end) {
+    const h = Math.floor(current / 60).toString().padStart(2, '0')
+    const m = (current % 60).toString().padStart(2, '0')
+    slots.push(`${h}:${m}`)
+    current += 30
+  }
+  return slots
+}
 
 type ConfirmedPos = 'first' | 'middle' | 'last' | 'only' | null
 
@@ -41,12 +58,13 @@ export function TimeGrid({
   const availabilityMap = useMemo(() => {
     const map = new Map<string, { count: number; names: string[] }>()
     for (const participant of participants) {
-      for (const availability of participant.availableTimes) {
-        for (const time of availability.times) {
-          const key = `${availability.date}-${time}`
+      for (const range of participant.availableTimeRanges) {
+        const slots = expandTimeRange(range.startTime, range.endTime)
+        for (const time of slots) {
+          const key = `${range.date}-${time}`
           const existing = map.get(key) || { count: 0, names: [] }
           existing.count++
-          existing.names.push(participant.guest_name || '익명')
+          existing.names.push(participant.name)
           map.set(key, existing)
         }
       }
@@ -145,7 +163,6 @@ export function TimeGrid({
       onMouseLeave={handleDragEnd}
     >
       <div className="min-w-fit">
-        {/* 날짜 헤더 */}
         <div className="grid gap-px bg-border" style={{ gridTemplateColumns: cols }}>
           <div className="bg-card" />
           {dates.map(date => {
@@ -159,20 +176,17 @@ export function TimeGrid({
           })}
         </div>
 
-        {/* 시간표 그리드 */}
         <div className="grid gap-px bg-border relative" style={{ gridTemplateColumns: cols }}>
           {TIME_SLOTS.map((time, timeIdx) => {
             const isFullHour = timeIdx % 2 === 0
             return (
               <Fragment key={time}>
-                {/* 시간 라벨 */}
                 <div className="bg-card h-6 flex items-center justify-end pr-2">
                   {isFullHour && (
                     <span className="text-xs text-muted-foreground">{time}</span>
                   )}
                 </div>
 
-                {/* 날짜별 셀 */}
                 {dates.map(date => {
                   const key = `${date}-${time}`
                   const availability = availabilityMap.get(key)

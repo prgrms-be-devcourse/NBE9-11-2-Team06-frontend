@@ -1,166 +1,159 @@
-import type { Meeting, MeetingDetail, CreateMeetingRequest, GuestParticipationRequest, GuestDeleteRequest, RecommendedTimeSlot } from '@/types/meeting'
-import { mockMeetings, mockMeetingDetails, mockRecommendedSlots } from '@/mock/meeting'
-import { delay } from './client'
+import type {
+  MeetingEntry,
+  ApiResponse,
+  CreateMeetingRequest,
+  MeetingCreateApiResponse,
+  ParticipantJoinRequest,
+  GuestParticipationRequest,
+  GuestDeleteRequest,
+  ParticipantSchedule,
+  RecommendedTimeSlot,
+  ConfirmedSchedule,
+  FinalizeRequest,
+  TimeTableResponse,
+} from '@/types/meeting'
+import { BASE_URL, jsonHeaders } from './client'
 
-
-// 내 모임 목록 조회
-export async function getMyMeetings(memberId: number): Promise<Meeting[]> {
-  await delay(500)
-
-  return mockMeetings
-    .filter(m => m.member_id === memberId)
-    .sort((a, b) => {
-      const dateA = new Date(a.created_at || 0).getTime()
-      const dateB = new Date(b.created_at || 0).getTime()
-      return dateB - dateA // 최신순
-    })
+export async function getMyMeetings(): Promise<MeetingEntry[]> {
+  const res = await fetch(`${BASE_URL}/api/meetings`, {
+    credentials: 'include',
+  })
+  if (!res.ok) throw new Error('모임 목록 조회에 실패했습니다.')
+  const json: ApiResponse<MeetingEntry[]> = await res.json()
+  return json.data
 }
 
-// 모임 상세 조회
-export async function getMeetingDetail(meetingId: number): Promise<MeetingDetail | null> {
-  await delay(500)
-
-  return mockMeetingDetails.find(m => m.meeting_id === meetingId) || null
+export async function getMeetingByUrl(randomUrl: string): Promise<MeetingEntry> {
+  const res = await fetch(`${BASE_URL}/api/meetings/${randomUrl}`, {
+    credentials: 'include',
+  })
+  if (!res.ok) throw new Error('모임 조회에 실패했습니다.')
+  const json: ApiResponse<MeetingEntry> = await res.json()
+  return json.data
 }
 
-// 랜덤 URL로 모임 조회
-export async function getMeetingByUrl(randomUrl: string): Promise<MeetingDetail | null> {
-  await delay(500)
-
-  return mockMeetingDetails.find(m => m.random_url === randomUrl) || null
-}
-
-// 모임 생성
-export async function createMeeting(data: CreateMeetingRequest, memberId: number): Promise<Meeting> {
-  await delay(500)
-
-  const newMeeting: Meeting = {
-    meeting_id: Date.now(),
-    member_id: memberId,
-    title: data.title,
-    category: data.category,
-    local_time: 'Asia/Seoul',
-    status: 'adjusting',
-    created_at: new Date().toISOString(),
-    modified_at: new Date().toISOString(),
-    random_url: generateRandomUrl(),
-    duration: data.duration,
-  }
-
-  // Mock에서는 메모리에만 추가
-  mockMeetings.unshift(newMeeting)
-
-  return newMeeting
-}
-
-// 모임 삭제
-export async function deleteMeeting(meetingId: number): Promise<boolean> {
-  await delay(500)
-
-  const index = mockMeetings.findIndex(m => m.meeting_id === meetingId)
-  if (index !== -1) {
-    mockMeetings.splice(index, 1)
-    return true
-  }
-  return false
-}
-
-// 비회원 참여 등록
-export async function participateAsGuest(
-  meetingId: number,
-  data: GuestParticipationRequest
-): Promise<boolean> {
-  const response = await fetch(`http://localhost:8080/api/meetings/${meetingId}/time-blocks`, {
+export async function createMeeting(data: CreateMeetingRequest): Promise<MeetingCreateApiResponse> {
+  const res = await fetch(`${BASE_URL}/api/meetings`, {
     method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
+    headers: jsonHeaders(),
     credentials: 'include',
     body: JSON.stringify(data),
   })
-
-  if (!response.ok) throw new Error('시간표 등록에 실패했습니다.')
-  return true
+  if (!res.ok) throw new Error('모임 생성에 실패했습니다.')
+  const json: ApiResponse<MeetingCreateApiResponse> = await res.json()
+  return json.data
 }
 
-// 비회원 인증 (일정 수정용)
-export async function verifyGuest(
-  meetingId: number,
-  guestName: string,
-  guestPassword: string
-): Promise<boolean> {
-  await delay(500)
-
-  const meeting = mockMeetingDetails.find(m => m.meeting_id === meetingId)
-  if (!meeting) return false
-
-  return meeting.participants.some(
-    p => p.guest_name === guestName && p.guest_password === guestPassword
-  )
-}
-
-// 추천 시간대 조회
-export async function getRecommendedSlots(meetingId: number): Promise<RecommendedTimeSlot[]> {
-  await delay(500)
-
-  // 실제로는 백엔드에서 계산
-  return mockRecommendedSlots
-}
-
-// 일정 확정
-export async function confirmMeeting(
-  meetingId: number,
-  confirmedDateTime: { date: string; startTime: string; endTime: string }
-): Promise<boolean> {
-  await delay(500)
-
-  const meetingIndex = mockMeetings.findIndex(m => m.meeting_id === meetingId)
-  if (meetingIndex !== -1) {
-    mockMeetings[meetingIndex].status = 'confirmed'
-  }
-
-  const detailIndex = mockMeetingDetails.findIndex(m => m.meeting_id === meetingId)
-  if (detailIndex !== -1) {
-    mockMeetingDetails[detailIndex].status = 'confirmed'
-    mockMeetingDetails[detailIndex].confirmedDateTime = confirmedDateTime
-  }
-
-  return true
-}
-
-// 비회원 일정 삭제
-// 비회원 일정 삭제
-export async function deleteParticipantSchedule(
-  meetingId: number,
-  data: GuestDeleteRequest
-): Promise<boolean> {
-  const response = await fetch(`http://localhost:8080/api/meetings/${meetingId}/time-blocks`, {
+export async function deleteMeeting(meetingId: number): Promise<void> {
+  const res = await fetch(`${BASE_URL}/api/meetings/${meetingId}`, {
     method: 'DELETE',
-    headers: { 'Content-Type': 'application/json' },
+    credentials: 'include',
+  })
+  if (!res.ok) throw new Error('모임 삭제에 실패했습니다.')
+}
+
+export async function joinMeeting(randomUrl: string, data: ParticipantJoinRequest): Promise<void> {
+  const res = await fetch(`${BASE_URL}/api/meetings/${randomUrl}/participants`, {
+    method: 'POST',
+    headers: jsonHeaders(),
     credentials: 'include',
     body: JSON.stringify(data),
   })
-
-  if (!response.ok) throw new Error('시간표 삭제에 실패했습니다.')
-  return true
-}
-// 일정 확정 취소
-export async function cancelConfirmedMeeting(meetingId: number): Promise<boolean> {
-  await delay(500)
-
-  const meetingIndex = mockMeetings.findIndex(m => m.meeting_id === meetingId)
-  if (meetingIndex !== -1) {
-    mockMeetings[meetingIndex].status = 'adjusting'
+  if (!res.ok) {
+    const err = await res.json().catch(() => ({}))
+    throw new Error(err.detail || '모임 참가에 실패했습니다.')
   }
-
-  const detailIndex = mockMeetingDetails.findIndex(m => m.meeting_id === meetingId)
-  if (detailIndex !== -1) {
-    mockMeetingDetails[detailIndex].status = 'adjusting'
-    mockMeetingDetails[detailIndex].confirmedDateTime = undefined
-  }
-
-  return true
 }
 
-// 랜덤 URL 생성 헬퍼
-function generateRandomUrl(): string {
-  return Math.random().toString(36).substring(2, 15)
+export async function participateAsGuest(meetingId: number, data: GuestParticipationRequest): Promise<void> {
+  const res = await fetch(`${BASE_URL}/api/meetings/${meetingId}/time-blocks`, {
+    method: 'POST',
+    headers: jsonHeaders(),
+    credentials: 'include',
+    body: JSON.stringify(data),
+  })
+  if (!res.ok) {
+    const err = await res.json().catch(() => ({}))
+    throw new Error(err.detail || '시간표 등록에 실패했습니다.')
+  }
+}
+
+export async function deleteParticipantSchedule(meetingId: number, data: GuestDeleteRequest): Promise<void> {
+  const res = await fetch(`${BASE_URL}/api/meetings/${meetingId}/time-blocks`, {
+    method: 'DELETE',
+    headers: jsonHeaders(),
+    credentials: 'include',
+    body: JSON.stringify(data),
+  })
+  if (!res.ok) {
+    const err = await res.json().catch(() => ({}))
+    throw new Error(err.detail || '시간표 삭제에 실패했습니다.')
+  }
+}
+
+export async function getParticipantSchedules(meetingId: number): Promise<ParticipantSchedule[]> {
+  const res = await fetch(`${BASE_URL}/api/meetings/${meetingId}/participants`, {
+    credentials: 'include',
+  })
+  if (!res.ok) throw new Error('참여자 목록 조회에 실패했습니다.')
+  const json: ApiResponse<ParticipantSchedule[]> = await res.json()
+  return json.data
+}
+
+export async function getRecommendedSlots(meetingId: number): Promise<RecommendedTimeSlot[]> {
+  const res = await fetch(`${BASE_URL}/api/meetings/${meetingId}/recommend`, {
+    credentials: 'include',
+  })
+  if (!res.ok) throw new Error('추천 시간대 조회에 실패했습니다.')
+  const json: ApiResponse<RecommendedTimeSlot[]> = await res.json()
+  return json.data
+}
+
+export async function confirmMeeting(meetingId: number, data: FinalizeRequest): Promise<ConfirmedSchedule> {
+  // Backend expects LocalTime in "HH:mm" format (@JsonFormat(pattern = "HH:mm")).
+  // The recommend API returns LocalTime without @JsonFormat, so it comes back as "HH:mm:ss".
+  // Normalize to the first 5 characters to strip any trailing seconds.
+  const payload = { date: data.date, time: data.time.slice(0, 5) }
+  const res = await fetch(`${BASE_URL}/api/meetings/${meetingId}/confirm`, {
+    method: 'POST',
+    headers: jsonHeaders(),
+    credentials: 'include',
+    body: JSON.stringify(payload),
+  })
+  if (!res.ok) {
+    const err = await res.json().catch(() => ({}))
+    throw new Error(err.detail || '일정 확정에 실패했습니다.')
+  }
+  const json: ApiResponse<ConfirmedSchedule> = await res.json()
+  return json.data
+}
+
+export async function cancelConfirmedMeeting(meetingId: number): Promise<void> {
+  const res = await fetch(`${BASE_URL}/api/meetings/${meetingId}/confirm`, {
+    method: 'DELETE',
+    credentials: 'include',
+  })
+  if (!res.ok) {
+    const err = await res.json().catch(() => ({}))
+    throw new Error(err.detail || '일정 확정 취소에 실패했습니다.')
+  }
+}
+
+export async function getConfirmedSchedule(meetingId: number): Promise<ConfirmedSchedule | null> {
+  const res = await fetch(`${BASE_URL}/api/meetings/${meetingId}/confirm`, {
+    credentials: 'include',
+  })
+  if (res.status === 400 || res.status === 404) return null
+  if (!res.ok) throw new Error('확정 일정 조회에 실패했습니다.')
+  const json: ApiResponse<ConfirmedSchedule> = await res.json()
+  return json.data
+}
+
+export async function getTimeTable(meetingId: number): Promise<TimeTableResponse> {
+  const res = await fetch(`${BASE_URL}/api/meetings/${meetingId}/timetable`, {
+    credentials: 'include',
+  })
+  if (!res.ok) throw new Error('타임테이블 조회에 실패했습니다.')
+  const json: ApiResponse<TimeTableResponse> = await res.json()
+  return json.data
 }

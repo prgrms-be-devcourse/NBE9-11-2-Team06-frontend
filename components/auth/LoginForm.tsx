@@ -6,9 +6,9 @@ import Link from 'next/link'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Spinner } from '@/components/ui/spinner'
-import { login, TEST_ACCOUNT } from '@/lib/api/auth'
+import { login } from '@/lib/api/auth'
 
 export function LoginForm() {
   const router = useRouter()
@@ -40,7 +40,7 @@ export function LoginForm() {
 
     try {
       const result = await login({ email, password })
-      
+
       if (result.success) {
         router.push('/meetings')
       } else {
@@ -98,12 +98,6 @@ export function LoginForm() {
             회원가입
           </Link>
         </p>
-
-        <div className="mt-4 p-3 bg-muted rounded-lg text-sm">
-          <p className="font-medium text-foreground mb-1">테스트 계정</p>
-          <p className="text-muted-foreground">이메일: {TEST_ACCOUNT.email}</p>
-          <p className="text-muted-foreground">비밀번호: {TEST_ACCOUNT.password}</p>
-        </div>
       </CardContent>
     </Card>
   )

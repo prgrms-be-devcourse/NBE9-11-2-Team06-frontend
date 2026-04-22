@@ -16,7 +16,7 @@ interface HeaderProps {
 
 export function Header({ showAuth = true, showCopyLink = false, copyLinkUrl }: HeaderProps) {
   const router = useRouter()
-  const [session, setSession] = useState<AuthSession>({ isAuthenticated: false, member: null })
+  const [session, setSession] = useState<AuthSession>({ isAuthenticated: false, user: null })
 
   useEffect(() => {
     setSession(getSession())
@@ -39,7 +39,7 @@ export function Header({ showAuth = true, showCopyLink = false, copyLinkUrl }: H
     <header className="sticky top-0 z-50 w-full border-b border-border bg-card">
       <div className="container mx-auto px-4 h-16 flex items-center justify-between">
         <Logo href="/meetings" />
-        
+
         <div className="flex items-center gap-4">
           {showCopyLink && copyLinkUrl && (
             <Button variant="outline" size="sm" onClick={handleCopyLink}>
@@ -47,11 +47,11 @@ export function Header({ showAuth = true, showCopyLink = false, copyLinkUrl }: H
               링크 복사
             </Button>
           )}
-          
+
           {showAuth && session.isAuthenticated && (
             <>
               <span className="text-sm text-muted-foreground">
-                {session.member?.nickname || session.member?.email}
+                {session.user?.nickname}
               </span>
               <Button variant="ghost" size="sm" onClick={handleLogout}>
                 <LogOut className="w-4 h-4 mr-2" />

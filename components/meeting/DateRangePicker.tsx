@@ -41,7 +41,10 @@ export function DateRangePicker({ selectedDates, onChange, maxDays = 31 }: DateR
   }
 
   const formatDateString = (date: Date): string => {
-    return date.toISOString().split('T')[0]
+    const y = date.getFullYear()
+    const m = String(date.getMonth() + 1).padStart(2, '0')
+    const d = String(date.getDate()).padStart(2, '0')
+    return `${y}-${m}-${d}`
   }
 
   const isSelected = (date: Date): boolean => selectedDates.includes(formatDateString(date))
@@ -85,7 +88,8 @@ export function DateRangePicker({ selectedDates, onChange, maxDays = 31 }: DateR
   const handleDragEnter = useCallback((date: Date) => {
     if (!isDragging || !dragStart || isDisabled(date)) return
 
-    const start = new Date(dragStart)
+    const [sy, sm, sd] = dragStart.split('-').map(Number)
+    const start = new Date(sy, sm - 1, sd)
     const end = date
     const rangeMin = start < end ? start : end
     const rangeMax = start < end ? end : start

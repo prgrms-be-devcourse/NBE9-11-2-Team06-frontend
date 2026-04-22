@@ -1,90 +1,87 @@
-import type { LoginRequest, LoginResponse, RegisterRequest, RegisterResponse, AuthSession } from '@/types/auth'
-import { mockMembers, TEST_ACCOUNT } from '@/mock/auth'
-import { delay } from './client'
+import type { LoginRequest, RegisterRequest, AuthSession, AuthUser } from '@/types/auth'
+import type { ApiResponse } from '@/types/meeting'
+import { BASE_URL, jsonHeaders } from './client'
 
-// 세션 스토리지 키
-const SESSION_KEY = 'auth_session'
+const SESSION_KEY = 'auth_user'
 
-// 로그인 API (Mock)
-export async function login(data: LoginRequest): Promise<LoginResponse> {
-  await delay(500) // 네트워크 지연 시뮬레이션
+export async function login(data: LoginRequest): Promise<{ success: boolean; user: AuthUser | null; message?: string }> {
+  const res = await fetch(`${BASE_URL}/api/auth/login`, {
+    method: 'POST',
+    headers: jsonHeaders(),
+    credentials: 'include',
+    body: JSON.stringify(data),
+  })
 
-  const member = mockMembers.find(
-    m => m.email === data.email && m.password_hash === data.password
-  )
-
-  if (member) {
-    const session: AuthSession = {
-      isAuthenticated: true,
-      member: {
-        member_id: member.member_id,
-        email: member.email,
-        nickname: member.nickname,
-        timezone: member.timezone,
-        created_at: member.created_at,
-        modified_at: member.modified_at,
-      },
-    }
-    
-    // 세션 저장
-    if (typeof window !== 'undefined') {
-      sessionStorage.setItem(SESSION_KEY, JSON.stringify(session))
-    }
-
-    return {
-      success: true,
-      member: session.member,
-    }
+  if (!res.ok) {
+    const err = await res.json().catch(() => ({}))
+    return { success: false, user: null, message: err.detail || '이메일 또는 비밀번호가 올바르지 않습니다.' }
   }
 
-  return {
-    success: false,
-    member: null,
-    message: '이메일 또는 비밀번호가 올바르지 않습니다.',
+  const json: ApiResponse<AuthUser> = await res.json()
+  const user = json.data
+
+  if (typeof window !== 'undefined') {
+    sessionStorage.setItem(SESSION_KEY, JSON.stringify(user))
   }
+
+  return { success: true, user }
 }
 
-// 회원가입 API (Mock)
-export async function register(data: RegisterRequest): Promise<RegisterResponse> {
-  await delay(500)
+export async function register(data: RegisterRequest): Promise<{ success: boolean; message?: string }> {
+  const res = await fetch(`${BASE_URL}/api/members`, {
+    method: 'POST',
+    headers: jsonHeaders(),
+    credentials: 'include',
+    body: JSON.stringify(data),
+  })
 
-  const exists = mockMembers.some(m => m.email === data.email)
-  
-  if (exists) {
-    return {
-      success: false,
-      message: '이미 등록된 이메일입니다.',
-    }
+  if (!res.ok) {
+    const err = await res.json().catch(() => ({}))
+    return { success: false, message: err.detail || '회원가입에 실패했습니다.' }
   }
 
-  // Mock에서는 실제로 저장하지 않음
-  return {
-    success: true,
-    message: '회원가입이 완료되었습니다.',
-  }
+  return { success: true }
 }
 
-// 로그아웃
 export async function logout(): Promise<void> {
-  await delay(200)
+  await fetch(`${BASE_URL}/api/auth/logout`, {
+    method: 'POST',
+    credentials: 'include',
+  }).catch(() => {})
+
   if (typeof window !== 'undefined') {
     sessionStorage.removeItem(SESSION_KEY)
   }
 }
 
-// 현재 세션 확인
 export function getSession(): AuthSession {
   if (typeof window === 'undefined') {
-    return { isAuthenticated: false, member: null }
+    return { isAuthenticated: false, user: null }
   }
 
   const stored = sessionStorage.getItem(SESSION_KEY)
   if (stored) {
-    return JSON.parse(stored)
+    try {
+      const user: AuthUser = JSON.parse(stored)
+      return { isAuthenticated: true, user }
+    } catch {
+      return { isAuthenticated: false, user: null }
+    }
   }
 
-  return { isAuthenticated: false, member: null }
+  return { isAuthenticated: false, user: null }
 }
 
-// 테스트 계정 정보 export
-export { TEST_ACCOUNT }
+export async function checkEmail(email: string): Promise<{ available: boolean }> {
+  const res = await fetch(`${BASE_URL}/api/members/check-email`, {
+    method: 'POST',
+    headers: jsonHeaders(),
+    credentials: 'include',
+    body: JSON.stringify({ email }),
+  })
+
+  if (!res.ok) return { available: false }
+
+  const json: ApiResponse<{ available: boolean }> = await res.json()
+  return json.data
+}

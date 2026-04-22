@@ -46,8 +46,9 @@ export function GuestInputModal({ isOpen, onClose, onSubmit, mode }: GuestInputM
       setName('')
       setPassword('')
       onClose()
-    } catch {
-      setError(mode === 'create' ? '저장에 실패했습니다.' : '이름 또는 비밀번호가 올바르지 않습니다.')
+    } catch (err) {
+      const message = err instanceof Error ? err.message : ''
+      setError(message || (mode === 'create' ? '저장에 실패했습니다.' : '이름 또는 비밀번호가 올바르지 않습니다.'))
     } finally {
       setIsLoading(false)
     }

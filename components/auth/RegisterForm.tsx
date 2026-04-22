@@ -7,8 +7,10 @@ import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { Spinner } from '@/components/ui/spinner'
 import { register } from '@/lib/api/auth'
+import { TIMEZONE_OPTIONS } from '@/types/auth'
 
 export function RegisterForm() {
   const router = useRouter()
@@ -16,6 +18,7 @@ export function RegisterForm() {
   const [nickname, setNickname] = useState('')
   const [password, setPassword] = useState('')
   const [confirmPassword, setConfirmPassword] = useState('')
+  const [timezone, setTimezone] = useState<string>('ASIA_SEOUL')
   const [error, setError] = useState('')
   const [isLoading, setIsLoading] = useState(false)
 
@@ -25,9 +28,7 @@ export function RegisterForm() {
   }
 
   const validatePassword = (password: string) => {
-    // 문자+숫자+특수문자, 8글자 이상, 20글자 이하
-    const passwordRegex = /^(?=.*[A-Za-z])(?=.*\d)(?=.*[@$!%*#?&])[A-Za-z\d@$!%*#?&]{8,20}$/
-    return passwordRegex.test(password)
+    return password.length >= 8 && password.length <= 20
   }
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -39,13 +40,13 @@ export function RegisterForm() {
       return
     }
 
-    if (!nickname.trim()) {
-      setError('닉네임을 입력해주세요.')
+    if (!nickname.trim() || nickname.length < 2 || nickname.length > 20) {
+      setError('닉네임은 2~20자로 입력해주세요.')
       return
     }
 
     if (!validatePassword(password)) {
-      setError('비밀번호는 문자, 숫자, 특수문자를 포함하여 8~20자여야 합니다.')
+      setError('비밀번호는 8~20자여야 합니다.')
       return
     }
 
@@ -57,8 +58,13 @@ export function RegisterForm() {
     setIsLoading(true)
 
     try {
-      const result = await register({ email, password, nickname })
-      
+      const result = await register({
+        email,
+        password,
+        nickname,
+        timezone: timezone as 'ASIA_SEOUL' | 'UTC' | 'AMERICA_NEW_YORK' | 'AMERICA_LOS_ANGELES',
+      })
+
       if (result.success) {
         alert('회원가입이 완료되었습니다. 로그인해주세요.')
         router.push('/login')
@@ -97,7 +103,7 @@ export function RegisterForm() {
             <Input
               id="nickname"
               type="text"
-              placeholder="닉네임을 입력하세요"
+              placeholder="닉네임 (2~20자)"
               value={nickname}
               onChange={(e) => setNickname(e.target.value)}
               disabled={isLoading}
@@ -109,7 +115,7 @@ export function RegisterForm() {
             <Input
               id="password"
               type="password"
-              placeholder="문자, 숫자, 특수문자 포함 8~20자"
+              placeholder="8~20자"
               value={password}
               onChange={(e) => setPassword(e.target.value)}
               disabled={isLoading}
@@ -126,6 +132,22 @@ export function RegisterForm() {
               onChange={(e) => setConfirmPassword(e.target.value)}
               disabled={isLoading}
             />
+          </div>
+
+          <div className="space-y-2">
+            <Label>시간대</Label>
+            <Select value={timezone} onValueChange={setTimezone} disabled={isLoading}>
+              <SelectTrigger>
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                {TIMEZONE_OPTIONS.map(opt => (
+                  <SelectItem key={opt.value} value={opt.value}>
+                    {opt.label}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
           </div>
 
           {error && (
