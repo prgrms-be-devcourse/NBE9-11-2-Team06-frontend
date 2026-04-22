@@ -11,11 +11,27 @@ import { getMyMeetings, deleteMeeting } from '@/lib/api/meeting'
 import { getSession } from '@/lib/api/auth'
 import type { MeetingEntry } from '@/types/meeting'
 
+export async function deleteMember() {
+  const res = await fetch('/api/members', {
+    method: 'DELETE',
+    credentials: 'include',
+  })
+
+  const data = await res.json()
+
+  if (!res.ok) {
+    throw new Error(data.message ?? data.msg ?? '회원 탈퇴 실패')
+  }
+
+  return data
+}
+
 export function MeetingList() {
   const router = useRouter()
   const [meetings, setMeetings] = useState<MeetingEntry[]>([])
   const [isLoading, setIsLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
+  const [showDeleteConfirm, setShowDeleteConfirm] = useState(false)
 
   const fetchMeetings = async () => {
     const session = getSession()
@@ -58,6 +74,17 @@ export function MeetingList() {
     return <ErrorState message={error} onRetry={fetchMeetings} />
   }
 
+  const handleDeleteMember = async () => {
+    try {
+      const res = await deleteMember()
+  
+      alert(res.message ?? res.msg)
+      router.push('/')
+    } catch (e: any) {
+      alert(e?.message ?? '탈퇴 실패')
+    }
+  }
+
   return (
     <div>
       <div className="flex items-center justify-between mb-6">
@@ -86,6 +113,36 @@ export function MeetingList() {
           ))}
         </div>
       )}
+      <Button
+        className="fixed bottom-6 right-6 bg-red-500 hover:bg-red-600"
+        onClick={() => setShowDeleteConfirm(true)}
+      >
+        회원 탈퇴
+      </Button>
+      {showDeleteConfirm && (
+        <div className="fixed inset-0 flex items-center justify-center bg-black/50">
+          <div className="bg-white p-6 rounded-lg shadow-lg text-center">
+            <p className="mb-4 font-semibold">정말 탈퇴하시겠습니까?</p>
+
+            <div className="flex gap-2 justify-center">
+              <Button
+                variant="outline"
+                onClick={() => setShowDeleteConfirm(false)}
+              >
+                취소
+              </Button>
+
+              <Button
+                className="bg-red-500 hover:bg-red-600"
+                onClick={handleDeleteMember}
+              >
+                확인
+              </Button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
+
   )
 }
