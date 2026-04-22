@@ -21,6 +21,60 @@ export function RegisterForm() {
   const [timezone, setTimezone] = useState<string>('ASIA_SEOUL')
   const [error, setError] = useState('')
   const [isLoading, setIsLoading] = useState(false)
+  const [emailCheckMessage, setEmailCheckMessage] = useState('')
+  const [emailCheckColor, setEmailCheckColor] = useState<'red' | 'blue' | ''>('')
+  const [isCheckingEmail, setIsCheckingEmail] = useState(false)
+  const [isEmailChecked, setIsEmailChecked] = useState(false)
+
+  const checkEmailDuplicate = async () => {
+    if (!validateEmail(email)) {
+      setEmailCheckMessage('올바른 이메일 형식이 아닙니다.')
+      setEmailCheckColor('red')
+      setIsEmailChecked(false)
+      return
+    }
+
+    setIsCheckingEmail(true)
+
+    try {
+      const res = await fetch('/api/members/check-email', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email }),
+      })
+
+      const data = await res.json()
+
+      const message =
+        data.msg ??
+        data.message ??
+        data?.data?.message ??
+        ''
+
+      const available =
+        data?.data?.available ??
+        data?.data?.data?.available ??
+        false
+
+      if (available) {
+        setEmailCheckMessage(message)
+        setEmailCheckColor('blue')
+        setIsEmailChecked(true)
+      } else {
+        setEmailCheckMessage(message)
+        setEmailCheckColor('red')
+        setIsEmailChecked(false)
+      }
+
+    } catch {
+      setEmailCheckMessage('확인 중 오류 발생')
+      setEmailCheckColor('red')
+      setIsEmailChecked(false)
+    } finally {
+      setIsCheckingEmail(false)
+    }
+  }
+
 
   const validateEmail = (email: string) => {
     const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
@@ -37,6 +91,11 @@ export function RegisterForm() {
 
     if (!validateEmail(email)) {
       setError('올바른 이메일 형식이 아닙니다.')
+      return
+    }
+
+    if (!isEmailChecked) {
+      setError('이메일 중복확인을 해주세요.')
       return
     }
 
@@ -88,14 +147,40 @@ export function RegisterForm() {
         <form onSubmit={handleSubmit} className="space-y-4">
           <div className="space-y-2">
             <Label htmlFor="email">이메일</Label>
-            <Input
-              id="email"
-              type="email"
-              placeholder="example@email.com"
-              value={email}
-              onChange={(e) => setEmail(e.target.value)}
-              disabled={isLoading}
-            />
+
+            <div className="flex gap-2">
+              <Input
+                id="email"
+                type="email"
+                placeholder="example@email.com"
+                value={email}
+                onChange={(e) => {
+                  setEmail(e.target.value)
+                  setEmailCheckMessage('')
+                  setIsEmailChecked(false) // 변경 시 초기화
+                }}
+                disabled={isLoading}
+              />
+
+              <Button
+                type="button"
+                onClick={checkEmailDuplicate}
+                disabled={isCheckingEmail || isLoading}
+              >
+                {isCheckingEmail ? '확인중...' : '중복확인'}
+              </Button>
+            </div>
+
+            {emailCheckMessage && (
+              <p
+                className={`text-sm ${emailCheckColor === 'red'
+                  ? 'text-red-500'
+                  : 'text-blue-500'
+                  }`}
+              >
+                {emailCheckMessage}
+              </p>
+            )}
           </div>
 
           <div className="space-y-2">
