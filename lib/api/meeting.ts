@@ -110,9 +110,6 @@ export async function getRecommendedSlots(meetingId: number): Promise<Recommende
 }
 
 export async function confirmMeeting(meetingId: number, data: FinalizeRequest): Promise<ConfirmedSchedule> {
-  // Backend expects LocalTime in "HH:mm" format (@JsonFormat(pattern = "HH:mm")).
-  // The recommend API returns LocalTime without @JsonFormat, so it comes back as "HH:mm:ss".
-  // Normalize to the first 5 characters to strip any trailing seconds.
   const payload = { date: data.date, time: data.time.slice(0, 5) }
   const res = await fetch(`${BASE_URL}/api/meetings/${meetingId}/confirm`, {
     method: 'POST',

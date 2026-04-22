@@ -62,7 +62,7 @@ export function RegisterForm() {
         email,
         password,
         nickname,
-        timezone: timezone as 'ASIA_SEOUL' | 'UTC' | 'AMERICA_NEW_YORK' | 'AMERICA_LOS_ANGELES',
+        timezone: timezone as 'ASIA_SEOUL' | 'UTC' | 'AMERICA_NEW_YORK',
       })
 
       if (result.success) {
