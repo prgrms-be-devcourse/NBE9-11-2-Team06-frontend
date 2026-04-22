@@ -8,6 +8,7 @@ import { Badge } from '@/components/ui/badge'
 import type { MeetingEntry } from '@/types/meeting'
 import { MEETING_CATEGORIES } from '@/types/meeting'
 import { formatDateKorean, formatDuration, addMinutes } from '@/lib/format'
+import { copyMeetingLink } from '@/lib/utils'
 
 interface MeetingCardProps {
   meeting: MeetingEntry
@@ -24,15 +25,6 @@ export function MeetingCard({ meeting, onDelete }: MeetingCardProps) {
 
   const categoryLabel = MEETING_CATEGORIES.find(c => c.value === meeting.category)?.label || meeting.category
   const status = STATUS_CONFIG[meeting.status] ?? STATUS_CONFIG.PENDING
-
-  const handleCopyLink = () => {
-    if (meeting.roomUrl) {
-      const fullUrl = `${window.location.origin}/meetings/${meeting.roomUrl}`
-      const text = `"${meeting.title}" 일정 조율에 참여해 주세요:\n${fullUrl}`
-      navigator.clipboard.writeText(text)
-      alert('링크가 복사되었습니다!')
-    }
-  }
 
   const handleViewDetail = () => {
     router.push(`/meetings/${meeting.roomUrl}`)
@@ -101,7 +93,7 @@ export function MeetingCard({ meeting, onDelete }: MeetingCardProps) {
         </div>
 
         <div className="flex gap-2">
-          <Button variant="outline" className="flex-1" onClick={handleCopyLink}>
+          <Button variant="outline" className="flex-1" onClick={() => copyMeetingLink(meeting.roomUrl, meeting.title)}>
             <Copy className="w-4 h-4 mr-2" />
             링크 복사
           </Button>

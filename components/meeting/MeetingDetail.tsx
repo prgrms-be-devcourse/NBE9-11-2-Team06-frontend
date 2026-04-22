@@ -26,6 +26,7 @@ import {
 import { getSession } from '@/lib/api/auth'
 import { MEETING_CATEGORIES } from '@/types/meeting'
 import { formatDuration, formatDateKorean, addMinutes } from '@/lib/format'
+import { copyMeetingLink } from '@/lib/utils'
 import type {
   MeetingEntry,
   ParticipantSchedule,
@@ -204,10 +205,7 @@ export function MeetingDetail({ meetingUrl }: MeetingDetailProps) {
 
   const handleCopyMeetingLink = () => {
     if (!meeting?.roomUrl) return
-    const fullUrl = `${window.location.origin}/meetings/${meeting.roomUrl}`
-    const text = `"${meeting.title}" 일정 조율에 참여해 주세요:\n${fullUrl}`
-    navigator.clipboard.writeText(text)
-    alert('링크가 복사되었습니다!')
+    copyMeetingLink(meeting.roomUrl, meeting.title)
   }
 
   const handleCopyConfirmedText = () => {
