@@ -57,7 +57,7 @@ export function MeetingDetail({ meetingUrl }: MeetingDetailProps) {
   const [showDeleteModal, setShowDeleteModal] = useState(false)
 
   const session = getSession()
-  const isOwner = session.isAuthenticated
+  const isOwner = session.isAuthenticated && session.user?.memberId === meeting?.hostMemberId
 
   const fetchMeeting = async () => {
     try {

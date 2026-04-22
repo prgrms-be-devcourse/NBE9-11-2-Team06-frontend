@@ -20,6 +20,7 @@ export interface MeetingEntry {
   createdAt: string   // "2026-04-21T14:30:00"
   confirmedDate?: string  // "2026-04-21" (CONFIRMED 상태일 때)
   confirmedTime?: string  // "14:00" (CONFIRMED 상태일 때)
+  hostMemberId?: number
 }
 
 // 모임 생성 요청 (MeetingCreateRequest)
