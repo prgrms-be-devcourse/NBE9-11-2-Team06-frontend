@@ -22,6 +22,7 @@ export async function login(data: LoginRequest): Promise<{ success: boolean; use
 
   if (typeof window !== 'undefined') {
     sessionStorage.setItem(SESSION_KEY, JSON.stringify(user))
+    window.dispatchEvent(new Event('session-changed'))
   }
 
   return { success: true, user }
@@ -51,6 +52,7 @@ export async function logout(): Promise<void> {
 
   if (typeof window !== 'undefined') {
     sessionStorage.removeItem(SESSION_KEY)
+    window.dispatchEvent(new Event('session-changed'))
   }
 }
 
