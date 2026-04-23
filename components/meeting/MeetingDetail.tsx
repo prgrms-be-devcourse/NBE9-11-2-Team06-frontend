@@ -327,6 +327,7 @@ export function MeetingDetail({ meetingUrl }: MeetingDetailProps) {
                     <Button
                       variant={isInputMode ? 'outline' : 'default'}
                       size="sm"
+                      disabled={meeting?.status === 'CONFIRMED'}
                       onClick={() => {
                         setIsInputMode(!isInputMode)
                         if (isInputMode) setSelectedTimes(new Map())
@@ -348,6 +349,7 @@ export function MeetingDetail({ meetingUrl }: MeetingDetailProps) {
                       <Button
                         variant="outline"
                         size="sm"
+                        disabled={meeting?.status === 'CONFIRMED'}
                         onClick={() => setShowDeleteModal(true)}
                       >
                         <Trash2 className="w-4 h-4 mr-1" />
