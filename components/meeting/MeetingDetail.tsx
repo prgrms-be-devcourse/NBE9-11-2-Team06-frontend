@@ -61,19 +61,25 @@ export function MeetingDetail({ meetingUrl }: MeetingDetailProps) {
   //const isOwner = session.isAuthenticated && session.user?.memberId === meeting?.hostMemberId
 
   async function checkIsHost(randomUrl: string): Promise<boolean> {
+    // 추가: 로그인 상태 먼저 확인
+    const session = getSession()
+    if (!session?.isAuthenticated) {
+      return false
+    }
+  
     const res = await fetch(`/api/meetings/${randomUrl}/check-creator`, {
       credentials: 'include',
     })
   
-    const data = await res.json()
-    console.log('checkIsHost response:', data)
-  
-    // 실패 응답 차단
+    // 추가: 응답 실패 바로 차단
     if (!res.ok) {
       return false
     }
   
-    // 안전 접근
+    const data = await res.json()
+    console.log('checkIsHost response:', data)
+  
+    // 유지: 안전 접근
     return data?.data?.isHost === true
   }
 
