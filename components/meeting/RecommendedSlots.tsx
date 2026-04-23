@@ -8,7 +8,7 @@ import { formatDateKorean } from '@/lib/format'
 
 interface RecommendedSlotsProps {
   slots: RecommendedTimeSlot[]
-  isOwner: boolean
+  isOwner: boolean | null
   onConfirm?: (slot: RecommendedTimeSlot) => void
   onCancelConfirm?: () => void
   onManualSelect?: () => void
@@ -29,7 +29,7 @@ export function RecommendedSlots({ slots, isOwner, onConfirm, onCancelConfirm, o
           <p className="text-sm text-muted-foreground text-center py-2">
             참여자들의 응답이 더 필요합니다
           </p>
-          {isOwner && onManualSelect && (
+          {isOwner === true && onManualSelect && (
             <Button variant="outline" size="sm" className="w-full" onClick={onManualSelect}>
               직접 일정 선택하기
             </Button>
@@ -55,7 +55,7 @@ export function RecommendedSlots({ slots, isOwner, onConfirm, onCancelConfirm, o
                 <Check className="w-4 h-4" />
                 확정된 일정
               </div>
-              {isOwner && onCancelConfirm && (
+              {isOwner === true && onCancelConfirm && (
                 <Button
                   variant="ghost"
                   size="sm"
@@ -72,7 +72,7 @@ export function RecommendedSlots({ slots, isOwner, onConfirm, onCancelConfirm, o
           </div>
         )}
 
-        {!confirmedSlot && isOwner && onManualSelect && (
+        {!confirmedSlot && isOwner === true && onManualSelect && (
           <Button variant="outline" size="sm" className="w-full" onClick={onManualSelect}>
             직접 일정 선택하기
           </Button>
@@ -91,7 +91,7 @@ export function RecommendedSlots({ slots, isOwner, onConfirm, onCancelConfirm, o
             <p className="text-sm text-muted-foreground mb-2">
               {slot.startTime.slice(0, 5)} - {slot.endTime.slice(0, 5)}
             </p>
-            {isOwner && onConfirm && (
+            {isOwner === true && onConfirm && (
               <Button
                 size="sm"
                 className="w-full"

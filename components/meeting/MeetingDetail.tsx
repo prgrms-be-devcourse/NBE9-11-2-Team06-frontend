@@ -56,9 +56,26 @@ export function MeetingDetail({ meetingUrl }: MeetingDetailProps) {
   const [selectedTimes, setSelectedTimes] = useState<Map<string, string[]>>(new Map())
   const [showGuestModal, setShowGuestModal] = useState(false)
   const [showDeleteModal, setShowDeleteModal] = useState(false)
-
+  const [isOwner, setIsOwner] = useState<boolean | null>(null)
   const session = getSession()
-  const isOwner = session.isAuthenticated && session.user?.memberId === meeting?.hostMemberId
+  //const isOwner = session.isAuthenticated && session.user?.memberId === meeting?.hostMemberId
+
+  async function checkIsHost(randomUrl: string): Promise<boolean> {
+    const res = await fetch(`/api/meetings/${randomUrl}/check-creator`, {
+      credentials: 'include',
+    })
+  
+    const data = await res.json()
+    console.log('checkIsHost response:', data)
+  
+    // 실패 응답 차단
+    if (!res.ok) {
+      return false
+    }
+  
+    // 안전 접근
+    return data?.data?.isHost === true
+  }
 
   const fetchMeeting = async () => {
     try {
@@ -70,7 +87,7 @@ export function MeetingDetail({ meetingUrl }: MeetingDetailProps) {
       setDates([...meetingData.dates].sort())
 
       // recommend()가 aggregate된 TimeTable을 읽으므로 /timetable 먼저 호출
-      await getTimeTable(meetingData.meetingId).catch(() => {})
+      await getTimeTable(meetingData.meetingId).catch(() => { })
 
       const [participantData, slots, confirmed] = await Promise.all([
         getParticipantSchedules(meetingData.meetingId),
@@ -92,6 +109,13 @@ export function MeetingDetail({ meetingUrl }: MeetingDetailProps) {
 
   useEffect(() => {
     fetchMeeting()
+  }, [meetingUrl])
+
+  
+  useEffect(() => {
+    if (!meetingUrl) return
+
+    checkIsHost(meetingUrl).then(setIsOwner)
   }, [meetingUrl])
 
   const handleTimeSelect = (date: string, times: string[]) => {
@@ -227,10 +251,10 @@ export function MeetingDetail({ meetingUrl }: MeetingDetailProps) {
 
   const confirmedSlotForDisplay = confirmedSchedule
     ? {
-        date: confirmedSchedule.date,
-        startTime: confirmedSchedule.time.slice(0, 5),
-        endTime: addMinutes(confirmedSchedule.time, meeting.duration),
-      }
+      date: confirmedSchedule.date,
+      startTime: confirmedSchedule.time.slice(0, 5),
+      endTime: addMinutes(confirmedSchedule.time, meeting.duration),
+    }
     : undefined
 
   return (
