@@ -109,8 +109,9 @@ export function TimeGrid({
 
   const getConfirmedStyle = (pos: ConfirmedPos): React.CSSProperties => {
     if (!pos) return {}
-    const b = '2px solid var(--primary)'
+    const b = '2px solid #14532d'
     return {
+      backgroundColor: '#14532d',
       borderLeft: b,
       borderRight: b,
       borderTop: pos === 'first' || pos === 'only' ? b : 'none',

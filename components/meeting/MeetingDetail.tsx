@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useCallback } from 'react'
 import { Calendar, Clock, Users, Edit, Eye, Copy, Link, Trash2 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent } from '@/components/ui/card'
@@ -23,6 +23,7 @@ import {
   deleteParticipantSchedule,
   getTimeTable,
 } from '@/lib/api/meeting'
+
 import { getSession } from '@/lib/api/auth'
 import { MEETING_CATEGORIES } from '@/types/meeting'
 import { formatDuration, formatDateKorean, addMinutes } from '@/lib/format'
@@ -57,25 +58,45 @@ export function MeetingDetail({ meetingUrl }: MeetingDetailProps) {
   const [showGuestModal, setShowGuestModal] = useState(false)
   const [showDeleteModal, setShowDeleteModal] = useState(false)
   const [isOwner, setIsOwner] = useState<boolean | null>(null)
-  const session = getSession()
-  //const isOwner = session.isAuthenticated && session.user?.memberId === meeting?.hostMemberId
+  const [sessionVersion, setSessionVersion] = useState(0)
 
-  async function checkIsHost(randomUrl: string): Promise<boolean> {
-    const res = await fetch(`/api/meetings/${randomUrl}/check-creator`, {
-      credentials: 'include',
-    })
-  
-    const data = await res.json()
-    console.log('checkIsHost response:', data)
-  
-    // 실패 응답 차단
-    if (!res.ok) {
+  const checkIsHost = useCallback(async (randomUrl: string): Promise<boolean> => {
+    const session = getSession()
+
+    // 로그인 상태가 아니면 방장 아님
+    if (!session.user) return false
+
+    // sessionStorage 캐시 확인 (탭별로 분리되므로 쿠키 덮어쓰기 영향 없음)
+    const cacheKey = `isHost_${randomUrl}_${session.user.memberId}`
+    const cached = sessionStorage.getItem(cacheKey)
+    if (cached !== null) return cached === 'true'
+
+    // 캐시 없을 때만 API 호출
+    try {
+      const res = await fetch(`/api/meetings/${randomUrl}/check-creator`, {
+        credentials: 'include',
+      })
+      if (!res.ok) return false
+      const data = await res.json()
+      const isHost = data?.data?.isHost === true
+      sessionStorage.setItem(cacheKey, String(isHost))
+      return isHost
+    } catch {
       return false
     }
-  
-    // 안전 접근
-    return data?.data?.isHost === true
-  }
+  }, [])
+
+  useEffect(() => {
+    const handler = () => {
+      // 로그인/로그아웃 시 캐시 초기화 후 재확인
+      Object.keys(sessionStorage)
+        .filter(k => k.startsWith('isHost_'))
+        .forEach(k => sessionStorage.removeItem(k))
+      setSessionVersion(v => v + 1)
+    }
+    window.addEventListener('session-changed', handler)
+    return () => window.removeEventListener('session-changed', handler)
+  }, [])
 
   const fetchMeeting = async () => {
     try {
@@ -111,12 +132,10 @@ export function MeetingDetail({ meetingUrl }: MeetingDetailProps) {
     fetchMeeting()
   }, [meetingUrl])
 
-  
   useEffect(() => {
     if (!meetingUrl) return
-
     checkIsHost(meetingUrl).then(setIsOwner)
-  }, [meetingUrl])
+  }, [meetingUrl, sessionVersion, checkIsHost])
 
   const handleTimeSelect = (date: string, times: string[]) => {
     setSelectedTimes(prev => {
@@ -321,6 +340,7 @@ export function MeetingDetail({ meetingUrl }: MeetingDetailProps) {
                     <Button
                       variant={isInputMode ? 'outline' : 'default'}
                       size="sm"
+                      disabled={meeting?.status === 'CONFIRMED'}
                       onClick={() => {
                         setIsInputMode(!isInputMode)
                         if (isInputMode) setSelectedTimes(new Map())
@@ -342,6 +362,7 @@ export function MeetingDetail({ meetingUrl }: MeetingDetailProps) {
                       <Button
                         variant="outline"
                         size="sm"
+                        disabled={meeting?.status === 'CONFIRMED'}
                         onClick={() => setShowDeleteModal(true)}
                       >
                         <Trash2 className="w-4 h-4 mr-1" />
